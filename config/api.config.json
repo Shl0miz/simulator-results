@@ -1,0 +1,9 @@
+{
+  "baseUrl": "http://localhost:8000",
+  "endpoint": "/results",
+  "method": "GET",
+  "headers": {},
+  "queryParams": {},
+  "resultsPath": "",
+  "fieldMap": {}
+}
