@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "app/api/fetch-results/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}
