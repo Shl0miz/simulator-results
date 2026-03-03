@@ -109,6 +109,29 @@ export async function fetchJobResults(
   return applyFieldMap(data.result, config.fieldMap) as SimulationResult[];
 }
 
+export interface JobListItem {
+  id: string;
+  name?: string | null;
+  group?: string | null;
+  owner?: string;
+  status: string;       // "completed" | "pending" | "failed" | "running"
+  created: string;
+  updated: string;
+  error?: string | null;
+  run_duration?: number | null;
+}
+
+/**
+ * Fetch list of all simulation jobs (no results, just metadata).
+ * GET /simulate?limit=10000&include_config=false
+ */
+export async function fetchJobList(config: EvPowerApiConfig): Promise<JobListItem[]> {
+  const url = `${config.baseUrl}/simulate?limit=10000&include_config=false`;
+  const data = await proxyFetch(url);
+  if (!Array.isArray(data)) throw new Error('Job list endpoint did not return an array');
+  return data as JobListItem[];
+}
+
 /**
  * Generic fetch from a full URL — for advanced/custom use.
  * Detects response shape automatically:

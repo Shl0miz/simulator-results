@@ -1,28 +1,89 @@
 // app/dashboard/layout.tsx
 'use client';
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { GlobalSidebar } from '@/components/GlobalSidebar';
 import { TabNav } from '@/components/TabNav';
 import { useSimulationStore } from '@/store/simulationStore';
+import { fetchGroupResults, fetchJobResults } from '@/lib/apiClient';
+import type { EvPowerApiConfig } from '@/lib/apiClient';
+import { enrichRows } from '@/lib/compute';
+import apiConfigJson from '@/config/api.config.json';
+import { Loader2 } from 'lucide-react';
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+const apiConfig = apiConfigJson as EvPowerApiConfig;
+
+/** Reads URL params and auto-loads data if store is empty */
+function AutoLoader() {
+  const searchParams = useSearchParams();
+  const { rawRows, setRows, setLoading, setLoadedUrl, setSourceKey, isLoading } = useSimulationStore();
+  const didAttempt = useRef(false);
   const router = useRouter();
-  const rawRows = useSimulationStore(s => s.rawRows);
 
   useEffect(() => {
-    if (rawRows.length === 0) {
+    if (rawRows.length > 0 || didAttempt.current || isLoading) return;
+    const group = searchParams.get('group');
+    const job = searchParams.get('job');
+    if (!group && !job) {
+      // No params — redirect to landing
       router.replace('/');
+      return;
     }
-  }, [rawRows.length, router]);
+    didAttempt.current = true;
+    setLoading(true);
 
-  if (rawRows.length === 0) return null;
+    const load = group
+      ? fetchGroupResults(apiConfig, group)
+      : fetchJobResults(apiConfig, job!);
+
+    load
+      .then(raw => {
+        const enriched = enrichRows(raw);
+        setRows(enriched);
+        setLoadedUrl(group ? `group: ${group}` : `job: ${job}`);
+        setSourceKey(group ? `group:${group}` : `job:${job!}`);
+      })
+      .catch(() => {
+        // Failed to load — go back to landing
+        router.replace('/');
+      })
+      .finally(() => setLoading(false));
+  }, [searchParams, rawRows.length, isLoading, router, setRows, setLoading, setLoadedUrl, setSourceKey]);
+
+  return null;
+}
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const rawRows = useSimulationStore(s => s.rawRows);
+  const isLoading = useSimulationStore(s => s.isLoading);
+
+  // Show loading overlay while auto-loading from URL
+  if (rawRows.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-screen gap-3 text-slate-400">
+        <Suspense fallback={null}>
+          <AutoLoader />
+        </Suspense>
+        {isLoading && (
+          <>
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span>Loading simulation data...</span>
+          </>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen overflow-hidden">
+      <Suspense fallback={null}>
+        <AutoLoader />
+      </Suspense>
       <GlobalSidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <TabNav />
+        <Suspense fallback={<nav className="h-12 border-b border-slate-800" />}>
+          <TabNav />
+        </Suspense>
         <main className="flex-1 overflow-auto p-6">
           {children}
         </main>

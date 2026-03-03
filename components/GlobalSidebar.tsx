@@ -1,22 +1,77 @@
 // components/GlobalSidebar.tsx
 'use client';
+import { useEffect, useState } from 'react';
 import { useSimulationStore } from '@/store/simulationStore';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 
+type HealthStatus = 'checking' | 'healthy' | 'degraded' | 'down';
+
+function HealthDot({ status }: { status: HealthStatus }) {
+  const cfg: Record<HealthStatus, { color: string; label: string }> = {
+    checking: { color: '#6b7280', label: 'Checking...' },
+    healthy:  { color: '#22c55e', label: 'API Online' },
+    degraded: { color: '#f59e0b', label: 'Degraded' },
+    down:     { color: '#ef4444', label: 'API Offline' },
+  };
+  const { color, label } = cfg[status];
+  return (
+    <div className="flex items-center gap-1.5" title={label}>
+      <span
+        className="w-2 h-2 rounded-full shrink-0"
+        style={{
+          backgroundColor: color,
+          boxShadow: status === 'healthy' ? `0 0 6px ${color}` : undefined,
+          animation: status === 'checking' ? undefined : 'none',
+        }}
+      />
+      <span className="text-xs" style={{ color }}>{label}</span>
+    </div>
+  );
+}
+
 export function GlobalSidebar() {
   const { settings, updateSettings, rawRows, loadedUrl } = useSimulationStore();
+  const [health, setHealth] = useState<HealthStatus>('checking');
+
+  useEffect(() => {
+    let active = true;
+
+    async function check() {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 3000);
+      try {
+        const res = await fetch(
+          `/api/fetch-results?url=${encodeURIComponent('https://api.simulation.evpower.ai/health')}`,
+          { signal: ctrl.signal }
+        );
+        clearTimeout(timer);
+        if (!active) return;
+        setHealth(res.ok ? 'healthy' : 'degraded');
+      } catch {
+        clearTimeout(timer);
+        if (active) setHealth('down');
+      }
+    }
+
+    check();
+    const interval = setInterval(check, 2000);
+    return () => { active = false; clearInterval(interval); };
+  }, []);
 
   return (
     <aside className="w-64 min-h-screen border-r border-slate-800 p-4 flex flex-col gap-6"
            style={{ background: 'oklch(0.09 0.02 265)' }}>
       {/* Header */}
       <div>
-        <h1 className="text-lg font-bold text-white">Sim Results</h1>
+        <div className="flex items-center justify-between mb-1">
+          <h1 className="text-lg font-bold text-white">Sim Results</h1>
+          <HealthDot status={health} />
+        </div>
         {loadedUrl && (
-          <p className="text-xs text-muted-foreground mt-1 truncate" title={loadedUrl}>
+          <p className="text-xs text-muted-foreground truncate" title={loadedUrl}>
             {loadedUrl}
           </p>
         )}
