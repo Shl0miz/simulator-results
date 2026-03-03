@@ -10,12 +10,17 @@ export async function GET(req: NextRequest) {
 
   try {
     const upstream = await fetch(decodeURIComponent(targetUrl), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      // Next.js server-side fetch has no browser timeout limit
     });
 
     if (!upstream.ok) {
+      const body = await upstream.text();
       return NextResponse.json(
-        { error: `Upstream error: ${upstream.status}` },
+        { error: `Upstream ${upstream.status}: ${body.slice(0, 200)}` },
         { status: upstream.status }
       );
     }

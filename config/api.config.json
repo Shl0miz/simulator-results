@@ -1,9 +1,8 @@
 {
-  "baseUrl": "http://localhost:8000",
-  "endpoint": "/results",
+  "baseUrl": "https://api.simulation.evpower.ai",
+  "groupEndpoint": "/simulate/group/{group}",
+  "jobEndpoint": "/simulate/{jobId}",
   "method": "GET",
   "headers": {},
-  "queryParams": {},
-  "resultsPath": "",
-  "fieldMap": {}
+  "resultsPath": "result"
 }
