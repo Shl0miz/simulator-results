@@ -4,8 +4,27 @@ import { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { useSimulationStore } from '@/store/simulationStore';
 import { buildBatteryScenarios } from '@/lib/batteryScenarios';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/utils';
+
+const CARD = { background: '#0D0E14', border: '1px solid #44474F', borderRadius: 4 };
+const H2 = {
+  color: '#EDF0F3',
+  fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif',
+  fontWeight: 300,
+  textTransform: 'uppercase' as const,
+  letterSpacing: '0.12em',
+  fontSize: '0.95rem',
+};
+const CARD_TITLE = {
+  color: '#686B6D',
+  fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif',
+  fontSize: '0.6rem',
+  letterSpacing: '0.18em',
+  textTransform: 'uppercase' as const,
+};
+const TOOLTIP_CONTENT = { background: '#080810', border: '1px solid #44474F', borderRadius: 4 };
+const AXIS = { stroke: '#44474F', tick: { fill: '#686B6D', fontSize: 10 } };
+const GRID_STROKE = '#1A1B22';
 
 export default function BatteryChangesPage() {
   const { rawRows, settings } = useSimulationStore();
@@ -14,7 +33,7 @@ export default function BatteryChangesPage() {
   if (scenarios.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-slate-400">No battery (BTM_name) data found in loaded results.</p>
+        <p className="text-sm" style={{ color: '#686B6D' }}>No battery (BTM_name) data found in loaded results.</p>
       </div>
     );
   }
@@ -28,98 +47,88 @@ export default function BatteryChangesPage() {
     color: s.color,
   }));
 
-  const cardStyle = { background: 'oklch(0.13 0.03 265)' };
-  const tooltipStyle = {
-    contentStyle: { background: 'oklch(0.09 0.02 265)', border: '1px solid #334155', borderRadius: 6 },
-  };
-  const axisProps = { stroke: '#334155', tick: { fill: '#94a3b8', fontSize: 10 } };
-
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      <h2 className="text-xl font-bold text-white">Battery Changes</h2>
+      <h2 style={H2}>Battery Changes</h2>
 
       <div className="grid grid-cols-2 gap-6">
-        <Card className="border-slate-700" style={cardStyle}>
-          <CardHeader><CardTitle className="text-sm text-slate-300">Monthly Profit by BESS Config</CardTitle></CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={profitData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e2a3a" />
-                <XAxis dataKey="name" {...axisProps} />
-                <YAxis tickFormatter={(v: number) => formatCurrency(v)} {...axisProps} />
-                <Tooltip {...tooltipStyle} formatter={(v: unknown) => [formatCurrency(v as number), 'Monthly Profit']} />
-                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                  {profitData.map((d, i) => <Cell key={i} fill={d.color} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card className="border-slate-700" style={cardStyle}>
-          <CardHeader><CardTitle className="text-sm text-slate-300">Avg DX Score by BESS Config</CardTitle></CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={dxData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e2a3a" />
-                <XAxis dataKey="name" {...axisProps} />
-                <YAxis domain={[0, 100]} {...axisProps} />
-                <Tooltip {...tooltipStyle} formatter={(v: unknown) => [(v as number)?.toFixed(1), 'DX Score']} />
-                <Bar dataKey="value" name="DX Score" radius={[4, 4, 0, 0]}>
-                  {dxData.map((d, i) => <Cell key={i} fill={d.color} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="border-slate-700" style={cardStyle}>
-        <CardHeader><CardTitle className="text-sm text-slate-300">Energy Storage Flow (avg per day)</CardTitle></CardHeader>
-        <CardContent>
+        <div style={CARD} className="p-5">
+          <p style={CARD_TITLE} className="mb-4">Monthly Profit by BESS Config</p>
           <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={energyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e2a3a" />
-              <XAxis dataKey="name" {...axisProps} />
-              <YAxis unit=" kWh" {...axisProps} />
-              <Tooltip {...tooltipStyle} formatter={(v: unknown) => [`${(v as number).toFixed(1)} kWh`]} />
-              <Bar dataKey="from" name="From Storage" fill="#22c55e" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="into" name="Into Storage" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+            <BarChart data={profitData}>
+              <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+              <XAxis dataKey="name" {...AXIS} />
+              <YAxis tickFormatter={(v: number) => formatCurrency(v)} {...AXIS} />
+              <Tooltip contentStyle={TOOLTIP_CONTENT} formatter={(v: unknown) => [formatCurrency(v as number), 'Monthly Profit']} />
+              <Bar dataKey="value" radius={[2, 2, 0, 0]}>
+                {profitData.map((d, i) => <Cell key={i} fill={d.color} />)}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
-        </CardContent>
-      </Card>
+        </div>
 
-      <Card className="border-slate-700" style={cardStyle}>
-        <CardHeader><CardTitle className="text-sm text-slate-300">Scenario Summary</CardTitle></CardHeader>
-        <CardContent>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-xs text-slate-400 border-b border-slate-700">
-                <th className="text-left pb-2">Config</th>
-                <th className="text-right pb-2">Avg Daily Profit</th>
-                <th className="text-right pb-2">Monthly Profit</th>
-                <th className="text-right pb-2">Avg DX</th>
-                <th className="text-right pb-2">Total Energy Out</th>
-              </tr>
-            </thead>
-            <tbody>
-              {scenarios.map(s => (
-                <tr key={s.id} className="border-b border-slate-800 last:border-0">
-                  <td className="py-2">
-                    <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ backgroundColor: s.color }} />
-                    {s.label}
-                  </td>
-                  <td className="py-2 text-right tabular-nums text-slate-200">{formatCurrency(s.avgProfit)}</td>
-                  <td className="py-2 text-right tabular-nums text-slate-200">{formatCurrency(s.monthlyProfit)}</td>
-                  <td className="py-2 text-right tabular-nums text-slate-300">{s.avgDx?.toFixed(1) ?? 'N/A'}</td>
-                  <td className="py-2 text-right tabular-nums text-slate-300">{s.totalEnergy.toFixed(0)} kWh</td>
-                </tr>
+        <div style={CARD} className="p-5">
+          <p style={CARD_TITLE} className="mb-4">Avg DX Score by BESS Config</p>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={dxData}>
+              <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+              <XAxis dataKey="name" {...AXIS} />
+              <YAxis domain={[0, 100]} {...AXIS} />
+              <Tooltip contentStyle={TOOLTIP_CONTENT} formatter={(v: unknown) => [(v as number)?.toFixed(1), 'DX Score']} />
+              <Bar dataKey="value" name="DX Score" radius={[2, 2, 0, 0]}>
+                {dxData.map((d, i) => <Cell key={i} fill={d.color} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div style={CARD} className="p-5">
+        <p style={CARD_TITLE} className="mb-4">Energy Storage Flow (avg per day)</p>
+        <ResponsiveContainer width="100%" height={280}>
+          <BarChart data={energyData}>
+            <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+            <XAxis dataKey="name" {...AXIS} />
+            <YAxis unit=" kWh" {...AXIS} />
+            <Tooltip contentStyle={TOOLTIP_CONTENT} formatter={(v: unknown) => [`${(v as number).toFixed(1)} kWh`]} />
+            <Bar dataKey="from" name="From Storage" fill="#FAFA2D" radius={[2, 2, 0, 0]} />
+            <Bar dataKey="into" name="Into Storage" fill="#44474F" radius={[2, 2, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div style={CARD} className="p-5">
+        <p style={CARD_TITLE} className="mb-4">Scenario Summary</p>
+        <table className="w-full text-sm">
+          <thead>
+            <tr style={{ borderBottom: '1px solid #44474F' }}>
+              {['Config', 'Avg Daily Profit', 'Monthly Profit', 'Avg DX', 'Total Energy Out'].map((h, i) => (
+                <th
+                  key={h}
+                  className={i === 0 ? 'text-left pb-2' : 'text-right pb-2'}
+                  style={{ color: '#686B6D', fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif', fontSize: '0.6rem', letterSpacing: '0.12em', textTransform: 'uppercase' }}
+                >
+                  {h}
+                </th>
               ))}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
+            </tr>
+          </thead>
+          <tbody>
+            {scenarios.map((s, i) => (
+              <tr key={s.id} style={{ borderBottom: i < scenarios.length - 1 ? '1px solid #1A1B22' : undefined }}>
+                <td className="py-2">
+                  <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ backgroundColor: s.color }} />
+                  <span style={{ color: '#EDF0F3', fontSize: '0.8rem' }}>{s.label}</span>
+                </td>
+                <td className="py-2 text-right tabular-nums" style={{ color: '#EDF0F3', fontFamily: 'Clash Grotesk, sans-serif', fontWeight: 300, fontSize: '0.85rem' }}>{formatCurrency(s.avgProfit)}</td>
+                <td className="py-2 text-right tabular-nums" style={{ color: '#EDF0F3', fontFamily: 'Clash Grotesk, sans-serif', fontWeight: 300, fontSize: '0.85rem' }}>{formatCurrency(s.monthlyProfit)}</td>
+                <td className="py-2 text-right tabular-nums" style={{ color: '#B1B3B4', fontFamily: 'Clash Grotesk, sans-serif', fontWeight: 300, fontSize: '0.85rem' }}>{s.avgDx?.toFixed(1) ?? 'N/A'}</td>
+                <td className="py-2 text-right tabular-nums" style={{ color: '#B1B3B4', fontFamily: 'Clash Grotesk, sans-serif', fontWeight: 300, fontSize: '0.85rem' }}>{s.totalEnergy.toFixed(0)} kWh</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

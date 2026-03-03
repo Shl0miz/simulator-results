@@ -5,13 +5,12 @@ import { useSimulationStore } from '@/store/simulationStore';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 
 type HealthStatus = 'checking' | 'healthy' | 'degraded' | 'down';
 
 function HealthDot({ status }: { status: HealthStatus }) {
   const cfg: Record<HealthStatus, { color: string; label: string }> = {
-    checking: { color: '#6b7280', label: 'Checking...' },
+    checking: { color: '#686B6D', label: 'Checking...' },
     healthy:  { color: '#22c55e', label: 'API Online' },
     degraded: { color: '#f59e0b', label: 'Degraded' },
     down:     { color: '#ef4444', label: 'API Offline' },
@@ -24,7 +23,6 @@ function HealthDot({ status }: { status: HealthStatus }) {
         style={{
           backgroundColor: color,
           boxShadow: status === 'healthy' ? `0 0 6px ${color}` : undefined,
-          animation: status === 'checking' ? undefined : 'none',
         }}
       />
       <span className="text-xs" style={{ color }}>{label}</span>
@@ -62,38 +60,76 @@ export function GlobalSidebar() {
   }, []);
 
   return (
-    <aside className="w-64 min-h-screen border-r border-slate-800 p-4 flex flex-col gap-6"
-           style={{ background: 'oklch(0.09 0.02 265)' }}>
-      {/* Header */}
-      <div>
-        <div className="flex items-center justify-between mb-1">
-          <h1 className="text-lg font-bold text-white">Sim Results</h1>
+    <aside
+      className="w-64 min-h-screen flex flex-col gap-6 p-5"
+      style={{ background: '#04040B', borderRight: '1px solid #44474F' }}
+    >
+      {/* Brand Header */}
+      <div className="pt-1">
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <p
+              className="text-[10px] tracking-[0.2em] uppercase mb-0.5"
+              style={{ color: '#686B6D', fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif' }}
+            >
+              evPower
+            </p>
+            <h1
+              className="text-base tracking-widest uppercase"
+              style={{
+                color: '#EDF0F3',
+                fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif',
+                fontWeight: 300,
+                letterSpacing: '0.12em',
+              }}
+            >
+              Sim Results
+            </h1>
+          </div>
           <HealthDot status={health} />
         </div>
         {loadedUrl && (
-          <p className="text-xs text-muted-foreground truncate" title={loadedUrl}>
+          <p
+            className="text-[10px] truncate mt-1"
+            style={{ color: '#686B6D' }}
+            title={loadedUrl}
+          >
             {loadedUrl}
           </p>
         )}
-        <Badge variant="outline" className="mt-2 text-xs border-slate-600 text-slate-400">
-          {rawRows.length} configs
-        </Badge>
+        <div
+          className="mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px]"
+          style={{ background: '#141520', color: '#686B6D', border: '1px solid #44474F' }}
+        >
+          <span style={{ color: '#FAFA2D' }}>{rawRows.length}</span>
+          <span>configs</span>
+        </div>
       </div>
+
+      {/* Divider */}
+      <div style={{ borderTop: '1px solid #44474F' }} />
 
       {/* Demand Charge Controls */}
       <div className="space-y-4">
-        <p className="text-xs uppercase tracking-wider text-slate-400">Demand Charges</p>
+        <p
+          className="text-[9px] tracking-[0.2em] uppercase"
+          style={{ color: '#686B6D', fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif' }}
+        >
+          Demand Charges
+        </p>
 
         <div className="flex items-center justify-between">
-          <Label className="text-sm text-slate-300">Apply Demand Charges</Label>
+          <Label className="text-xs" style={{ color: '#B1B3B4' }}>Apply Charges</Label>
           <Switch
             checked={settings.applyDemandCharges}
             onCheckedChange={v => updateSettings({ applyDemandCharges: v })}
           />
         </div>
 
-        <div className="space-y-1">
-          <Label className="text-xs text-slate-400">Rate ($/kW)</Label>
+        <div className="space-y-1.5">
+          <Label className="text-[10px] tracking-wider uppercase" style={{ color: '#686B6D' }}>
+            Rate ($/kW)
+          </Label>
           <Input
             type="number"
             min={0}
@@ -101,21 +137,22 @@ export function GlobalSidebar() {
             value={settings.demandChargeRate}
             onChange={e => updateSettings({ demandChargeRate: Number(e.target.value) })}
             disabled={!settings.applyDemandCharges}
-            className="border-slate-600 text-white h-8 text-sm"
-            style={{ background: 'oklch(0.16 0.03 265)' }}
+            className="h-8 text-sm border-0"
+            style={{
+              background: '#141520',
+              color: '#EDF0F3',
+              border: '1px solid #44474F',
+              outline: 'none',
+            }}
           />
         </div>
 
-        {!settings.applyDemandCharges && (
-          <p className="text-xs text-slate-500 italic">
-            Monthly profit = Σ daily profits
-          </p>
-        )}
-        {settings.applyDemandCharges && (
-          <p className="text-xs text-slate-500 italic">
-            Monthly profit = Σprofit − {settings.demandChargeRate}$/kW × peak 15m demand
-          </p>
-        )}
+        <p className="text-[10px] leading-relaxed" style={{ color: '#686B6D' }}>
+          {!settings.applyDemandCharges
+            ? 'Monthly profit = Σ daily profits'
+            : `Monthly profit = Σprofit − ${settings.demandChargeRate}$/kW × peak 15m`
+          }
+        </p>
       </div>
     </aside>
   );

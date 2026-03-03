@@ -18,21 +18,25 @@ export function TabNav() {
   const qs = searchParams.toString() ? `?${searchParams.toString()}` : '';
 
   return (
-    <nav className="flex border-b border-slate-800 px-4" style={{ background: 'oklch(0.09 0.02 265)' }}>
-      {TABS.map(tab => (
-        <Link
-          key={tab.href}
-          href={`${tab.href}${qs}`}
-          className={cn(
-            'px-4 py-3 text-sm transition-colors border-b-2 -mb-px',
-            pathname === tab.href
-              ? 'border-blue-500 text-white'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
-          )}
-        >
-          {tab.label}
-        </Link>
-      ))}
+    <nav className="flex border-b px-4" style={{ background: '#04040B', borderColor: '#44474F' }}>
+      {TABS.map(tab => {
+        const active = pathname === tab.href;
+        return (
+          <Link
+            key={tab.href}
+            href={`${tab.href}${qs}`}
+            className={cn(
+              'px-4 py-3 transition-colors border-b-2 -mb-px tracking-widest uppercase',
+              active
+                ? 'border-[#FAFA2D] text-[#FAFA2D]'
+                : 'border-transparent text-[#686B6D] hover:text-[#EDF0F3]'
+            )}
+            style={{ fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif', fontSize: '0.65rem', letterSpacing: '0.1em' }}
+          >
+            {tab.label}
+          </Link>
+        );
+      })}
     </nav>
   );
 }

@@ -2,7 +2,6 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useSimulationStore } from '@/store/simulationStore';
 import { fetchGroupResults, fetchJobResults, fetchJobList } from '@/lib/apiClient';
@@ -26,16 +25,22 @@ function timeAgo(iso: string): string {
 
 function StatusBadge({ status }: { status: string }) {
   const cfg: Record<string, { label: string; color: string }> = {
-    completed: { label: 'Done', color: '#22c55e' },
+    completed: { label: 'Done',    color: '#22c55e' },
     pending:   { label: 'Pending', color: '#f59e0b' },
     running:   { label: 'Running', color: '#3b82f6' },
-    failed:    { label: 'Failed', color: '#ef4444' },
+    failed:    { label: 'Failed',  color: '#ef4444' },
   };
-  const { label, color } = cfg[status] ?? { label: status, color: '#6b7280' };
+  const { label, color } = cfg[status] ?? { label: status, color: '#686B6D' };
   return (
     <span
-      className="text-xs px-2 py-0.5 rounded-full font-medium"
-      style={{ backgroundColor: color + '22', color, border: `1px solid ${color}44` }}
+      className="text-[10px] px-2 py-0.5 tracking-wider uppercase"
+      style={{
+        backgroundColor: color + '18',
+        color,
+        border: `1px solid ${color}44`,
+        borderRadius: 3,
+        fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif',
+      }}
     >
       {label}
     </span>
@@ -63,10 +68,8 @@ export default function LandingPage() {
     setListError(null);
     try {
       const data = await fetchJobList(apiConfig);
-      // Sort newest first
       data.sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime());
       setJobs(data);
-      // Auto-expand all groups that have jobs
       const groups = new Set(data.map(j => j.group ?? '__ungrouped__'));
       setExpandedGroups(groups);
     } catch (err) {
@@ -76,7 +79,6 @@ export default function LandingPage() {
     }
   }
 
-  // Auto-load on mount
   useEffect(() => { loadJobList(); }, []);
 
   const groups: GroupedJobs[] = useMemo(() => {
@@ -146,48 +148,76 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen p-6" style={{ background: 'oklch(0.08 0.02 265)' }}>
-      <div className="max-w-3xl mx-auto space-y-4">
+    <div className="min-h-screen p-8" style={{ background: '#04040B' }}>
+      <div className="max-w-3xl mx-auto space-y-5">
+
         {/* Header */}
-        <div className="flex items-center justify-between py-2">
+        <div className="flex items-start justify-between pb-4" style={{ borderBottom: '1px solid #44474F' }}>
           <div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">Sim Results</h1>
-            <p className="text-slate-400 text-sm">evPower Simulation Results Viewer</p>
+            <p
+              className="text-[9px] tracking-[0.25em] uppercase mb-1"
+              style={{ color: '#686B6D', fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif' }}
+            >
+              evPower
+            </p>
+            <h1
+              className="text-2xl tracking-widest uppercase"
+              style={{
+                color: '#EDF0F3',
+                fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif',
+                fontWeight: 300,
+                letterSpacing: '0.15em',
+              }}
+            >
+              Sim Results
+            </h1>
+            <p className="text-xs mt-1" style={{ color: '#686B6D' }}>
+              Simulation Results Viewer
+            </p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
+          <button
             onClick={loadJobList}
             disabled={listLoading}
-            className="border-slate-600 text-slate-300 hover:text-white gap-2"
+            className="flex items-center gap-2 px-4 py-2 text-xs tracking-widest uppercase transition-colors disabled:opacity-50"
+            style={{
+              background: listLoading ? '#141520' : '#FAFA2D',
+              color: listLoading ? '#686B6D' : '#04040B',
+              border: '1px solid #44474F',
+              borderRadius: 3,
+              fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif',
+              fontWeight: 400,
+            }}
           >
-            <RefreshCw className={cn('w-4 h-4', listLoading && 'animate-spin')} />
+            <RefreshCw className={cn('w-3.5 h-3.5', listLoading && 'animate-spin')} />
             {listLoading ? 'Loading...' : 'Refresh'}
-          </Button>
+          </button>
         </div>
 
         {/* Error */}
         {listError && (
-          <div className="rounded border border-red-800 bg-red-950/40 px-4 py-3 text-red-400 text-sm">
+          <div
+            className="px-4 py-3 text-sm rounded"
+            style={{ background: '#ef444418', color: '#ef4444', border: '1px solid #ef444444' }}
+          >
             {listError}
           </div>
         )}
 
-        {/* Loading skeleton */}
+        {/* Loading */}
         {listLoading && jobs.length === 0 && (
-          <div className="flex items-center justify-center py-16 text-slate-400 gap-3">
-            <Loader2 className="w-5 h-5 animate-spin" />
-            Loading jobs...
+          <div className="flex items-center justify-center py-16 gap-3" style={{ color: '#686B6D' }}>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span className="text-sm">Loading jobs...</span>
           </div>
         )}
 
-        {/* Stats row */}
+        {/* Stats */}
         {jobs.length > 0 && (
-          <div className="flex gap-4 text-xs text-slate-500">
-            <span>{jobs.length} jobs total</span>
-            <span className="text-green-400">{jobs.filter(j => j.status === 'completed').length} completed</span>
-            <span className="text-yellow-400">{jobs.filter(j => j.status === 'pending' || j.status === 'running').length} pending</span>
-            <span className="text-red-400">{jobs.filter(j => j.status === 'failed').length} failed</span>
+          <div className="flex gap-5 text-xs" style={{ color: '#686B6D' }}>
+            <span style={{ color: '#686B6D' }}>{jobs.length} total</span>
+            <span style={{ color: '#22c55e' }}>{jobs.filter(j => j.status === 'completed').length} completed</span>
+            <span style={{ color: '#f59e0b' }}>{jobs.filter(j => j.status === 'pending' || j.status === 'running').length} pending</span>
+            <span style={{ color: '#ef4444' }}>{jobs.filter(j => j.status === 'failed').length} failed</span>
           </div>
         )}
 
@@ -198,37 +228,53 @@ export default function LandingPage() {
           const isGroupLoading = loadingKey === `group:${group.name}`;
 
           return (
-            <Card key={group.name} className="border-slate-700 overflow-hidden"
-                  style={{ background: 'oklch(0.12 0.025 265)' }}>
+            <div key={group.name} className="overflow-hidden" style={{ border: '1px solid #44474F', borderRadius: 4 }}>
               {/* Group header */}
-              <CardHeader className="p-0">
-                <div className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-white/5 transition-colors"
-                     onClick={() => toggleGroup(group.name)}>
-                  <span className="text-slate-500">
-                    {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                  </span>
-                  <Layers className="w-4 h-4 text-blue-400 shrink-0" />
-                  <span className="flex-1 font-medium text-white text-sm">{displayName}</span>
-                  <span className="text-xs text-slate-500">
-                    {group.jobs.length} job{group.jobs.length !== 1 ? 's' : ''}
-                    {group.completedCount > 0 && ` · ${group.completedCount} done`}
-                  </span>
-                  {group.completedCount > 0 && (
-                    <Button
-                      size="sm"
-                      disabled={isGroupLoading || isLoading}
-                      onClick={e => { e.stopPropagation(); handleLoadGroup(group.name); }}
-                      className="h-7 px-3 text-xs bg-blue-600 hover:bg-blue-500 text-white shrink-0"
-                    >
-                      {isGroupLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Load Group'}
-                    </Button>
-                  )}
-                </div>
-              </CardHeader>
+              <div
+                className="flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors"
+                style={{ background: '#0D0E14' }}
+                onClick={() => toggleGroup(group.name)}
+              >
+                <span style={{ color: '#44474F' }}>
+                  {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                </span>
+                <Layers className="w-3.5 h-3.5 shrink-0" style={{ color: '#FAFA2D' }} />
+                <span
+                  className="flex-1 text-sm tracking-widest uppercase truncate"
+                  style={{
+                    color: '#EDF0F3',
+                    fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif',
+                    fontWeight: 300,
+                    letterSpacing: '0.08em',
+                    fontSize: '0.7rem',
+                  }}
+                >
+                  {displayName}
+                </span>
+                <span className="text-xs shrink-0" style={{ color: '#686B6D' }}>
+                  {group.jobs.length} job{group.jobs.length !== 1 ? 's' : ''}
+                  {group.completedCount > 0 && ` · ${group.completedCount} done`}
+                </span>
+                {group.completedCount > 0 && (
+                  <button
+                    disabled={isGroupLoading || isLoading}
+                    onClick={e => { e.stopPropagation(); handleLoadGroup(group.name); }}
+                    className="flex items-center gap-1.5 px-3 py-1 text-[10px] tracking-widest uppercase shrink-0 transition-opacity disabled:opacity-50"
+                    style={{
+                      background: '#FAFA2D',
+                      color: '#04040B',
+                      borderRadius: 2,
+                      fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif',
+                    }}
+                  >
+                    {isGroupLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Load Group'}
+                  </button>
+                )}
+              </div>
 
               {/* Jobs list */}
               {isExpanded && (
-                <CardContent className="p-0">
+                <div>
                   {group.jobs.map((job, i) => {
                     const jobName = job.name || job.id;
                     const isJobLoading = loadingKey === `job:${job.id}`;
@@ -236,40 +282,49 @@ export default function LandingPage() {
                       <div
                         key={job.id}
                         className={cn(
-                          'flex items-center gap-3 px-4 py-2.5 text-sm',
-                          i < group.jobs.length - 1 && 'border-b border-slate-800/60',
-                          'hover:bg-white/3 transition-colors'
+                          'flex items-center gap-3 px-4 py-2.5',
+                          i < group.jobs.length - 1 && 'border-b'
                         )}
-                        style={{ background: 'oklch(0.10 0.02 265)' }}
+                        style={{
+                          background: '#080810',
+                          borderColor: '#44474F33',
+                        }}
                       >
-                        <FileText className="w-3.5 h-3.5 text-slate-600 shrink-0" />
-                        <span className="flex-1 text-slate-300 truncate" title={jobName}>{jobName}</span>
+                        <FileText className="w-3 h-3 shrink-0" style={{ color: '#44474F' }} />
+                        <span className="flex-1 text-xs truncate" style={{ color: '#B1B3B4' }} title={jobName}>
+                          {jobName}
+                        </span>
                         <StatusBadge status={job.status} />
-                        <span className="text-xs text-slate-600 w-16 text-right shrink-0">
+                        <span className="text-[10px] w-14 text-right shrink-0" style={{ color: '#44474F' }}>
                           {timeAgo(job.created)}
                         </span>
                         {job.status === 'completed' && (
-                          <Button
-                            size="sm"
-                            variant="outline"
+                          <button
                             disabled={isJobLoading || isLoading}
                             onClick={() => handleLoadJob(job.id, job.name ?? '')}
-                            className="h-6 px-2 text-xs border-slate-600 text-slate-400 hover:text-white shrink-0"
+                            className="flex items-center gap-1 px-2 py-0.5 text-[10px] tracking-wider uppercase shrink-0 transition-opacity disabled:opacity-50"
+                            style={{
+                              background: 'transparent',
+                              color: '#FAFA2D',
+                              border: '1px solid #FAFA2D44',
+                              borderRadius: 2,
+                              fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif',
+                            }}
                           >
                             {isJobLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Load'}
-                          </Button>
+                          </button>
                         )}
                       </div>
                     );
                   })}
-                </CardContent>
+                </div>
               )}
-            </Card>
+            </div>
           );
         })}
 
         {!listLoading && jobs.length === 0 && !listError && (
-          <div className="text-center py-16 text-slate-500">
+          <div className="text-center py-16 text-sm" style={{ color: '#44474F' }}>
             No jobs found. Click Refresh to load.
           </div>
         )}

@@ -7,10 +7,22 @@ import {
 } from 'recharts';
 import { useSimulationStore } from '@/store/simulationStore';
 import { computeMonthlyProfit } from '@/lib/compute';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/utils';
 import { ALLOCATOR_COLORS } from '@/constants';
 import type { EnrichedRow } from '@/lib/types';
+
+const CARD = { background: '#0D0E14', border: '1px solid #44474F', borderRadius: 4 };
+const H2 = {
+  color: '#EDF0F3',
+  fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif',
+  fontWeight: 300,
+  textTransform: 'uppercase' as const,
+  letterSpacing: '0.12em',
+  fontSize: '0.95rem',
+};
+const TOOLTIP_CONTENT = { background: '#080810', border: '1px solid #44474F', borderRadius: 4 };
+const AXIS = { stroke: '#44474F', tick: { fill: '#686B6D', fontSize: 10 } };
+const GRID_STROKE = '#1A1B22';
 
 export default function TacticalDCOPage() {
   const { rawRows, settings } = useSimulationStore();
@@ -59,79 +71,88 @@ export default function TacticalDCOPage() {
     });
   }, [rawRows, selectedAllocator, settings]);
 
-  const color = ALLOCATOR_COLORS[selectedAllocator] ?? '#3b82f6';
-
-  const tooltipStyle = {
-    contentStyle: { background: 'oklch(0.09 0.02 265)', border: '1px solid #334155', borderRadius: 6 },
-    labelStyle: { color: '#94a3b8' },
-  };
-
-  const axisProps = { stroke: '#334155', tick: { fill: '#94a3b8', fontSize: 11 } };
+  const color = ALLOCATOR_COLORS[selectedAllocator] ?? '#FAFA2D';
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-white">Tactical Demand (DCO)</h2>
+        <h2 style={H2}>Tactical Demand (DCO)</h2>
         <div className="flex gap-2">
-          {allocators.map(a => (
-            <button
-              key={a}
-              onClick={() => setSelectedAllocator(a)}
-              className={`px-3 py-1 rounded text-sm border transition-colors ${
-                selectedAllocator === a
-                  ? 'border-blue-500 text-white bg-blue-500/20'
-                  : 'border-slate-600 text-slate-400 hover:text-white'
-              }`}
-            >
-              {a}
-            </button>
-          ))}
+          {allocators.map(a => {
+            const active = selectedAllocator === a;
+            return (
+              <button
+                key={a}
+                onClick={() => setSelectedAllocator(a)}
+                className="px-3 py-1 text-[10px] tracking-widest uppercase transition-colors"
+                style={{
+                  background: active ? '#FAFA2D' : 'transparent',
+                  color: active ? '#04040B' : '#686B6D',
+                  border: `1px solid ${active ? '#FAFA2D' : '#44474F'}`,
+                  borderRadius: 2,
+                  fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif',
+                }}
+              >
+                {a}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {chartData.length === 0 && (
-        <p className="text-slate-400">No data available for allocator: {selectedAllocator}</p>
+        <p className="text-sm" style={{ color: '#686B6D' }}>No data available for allocator: {selectedAllocator}</p>
       )}
 
       {/* Monthly Profit: DCO ON vs OFF */}
-      <Card className="border-slate-700" style={{ background: 'oklch(0.13 0.03 265)' }}>
-        <CardHeader>
-          <CardTitle className="text-sm text-slate-300">Monthly Profit: DCO ON vs DCO OFF</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={280}>
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e2a3a" />
-              <XAxis dataKey="grid_input" tickFormatter={(v: number) => `${v}kW`} {...axisProps} />
-              <YAxis tickFormatter={(v: number) => formatCurrency(v)} {...axisProps} />
-              <Tooltip {...tooltipStyle} formatter={(v: unknown) => [formatCurrency(v as number)]} />
-              <Legend wrapperStyle={{ color: '#94a3b8', fontSize: 12 }} />
-              <Line type="monotone" dataKey="dco_on_profit" name="DCO ON" stroke={color} strokeWidth={2} dot={false} connectNulls />
-              <Line type="monotone" dataKey="dco_off_profit" name="DCO OFF" stroke={color} strokeWidth={2} strokeDasharray="6 3" dot={false} connectNulls />
-            </LineChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      <div style={CARD} className="p-5">
+        <p
+          className="text-[9px] tracking-[0.18em] uppercase mb-4"
+          style={{ color: '#686B6D', fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif' }}
+        >
+          Monthly Profit: DCO ON vs DCO OFF
+        </p>
+        <ResponsiveContainer width="100%" height={280}>
+          <LineChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+            <XAxis dataKey="grid_input" tickFormatter={(v: number) => `${v}kW`} {...AXIS} />
+            <YAxis tickFormatter={(v: number) => formatCurrency(v)} {...AXIS} />
+            <Tooltip
+              contentStyle={TOOLTIP_CONTENT}
+              labelStyle={{ color: '#686B6D', fontSize: 11 }}
+              formatter={(v: unknown) => [formatCurrency(v as number)]}
+            />
+            <Legend wrapperStyle={{ color: '#686B6D', fontSize: 11 }} />
+            <Line type="monotone" dataKey="dco_on_profit" name="DCO ON" stroke={color} strokeWidth={2} dot={false} connectNulls />
+            <Line type="monotone" dataKey="dco_off_profit" name="DCO OFF" stroke={color} strokeWidth={1.5} strokeDasharray="6 3" dot={false} connectNulls opacity={0.5} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
 
       {/* DX Score: DCO ON vs OFF */}
-      <Card className="border-slate-700" style={{ background: 'oklch(0.13 0.03 265)' }}>
-        <CardHeader>
-          <CardTitle className="text-sm text-slate-300">DX Score: DCO ON vs DCO OFF</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={280}>
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e2a3a" />
-              <XAxis dataKey="grid_input" tickFormatter={(v: number) => `${v}kW`} {...axisProps} />
-              <YAxis domain={[0, 100]} {...axisProps} />
-              <Tooltip {...tooltipStyle} formatter={(v: unknown) => [(v as number)?.toFixed(1)]} />
-              <Legend wrapperStyle={{ color: '#94a3b8', fontSize: 12 }} />
-              <Line type="monotone" dataKey="dco_on_dx" name="DCO ON" stroke={color} strokeWidth={2} dot={false} connectNulls />
-              <Line type="monotone" dataKey="dco_off_dx" name="DCO OFF" stroke={color} strokeWidth={2} strokeDasharray="6 3" dot={false} connectNulls />
-            </LineChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      <div style={CARD} className="p-5">
+        <p
+          className="text-[9px] tracking-[0.18em] uppercase mb-4"
+          style={{ color: '#686B6D', fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif' }}
+        >
+          DX Score: DCO ON vs DCO OFF
+        </p>
+        <ResponsiveContainer width="100%" height={280}>
+          <LineChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+            <XAxis dataKey="grid_input" tickFormatter={(v: number) => `${v}kW`} {...AXIS} />
+            <YAxis domain={[0, 100]} {...AXIS} />
+            <Tooltip
+              contentStyle={TOOLTIP_CONTENT}
+              labelStyle={{ color: '#686B6D', fontSize: 11 }}
+              formatter={(v: unknown) => [(v as number)?.toFixed(1)]}
+            />
+            <Legend wrapperStyle={{ color: '#686B6D', fontSize: 11 }} />
+            <Line type="monotone" dataKey="dco_on_dx" name="DCO ON" stroke={color} strokeWidth={2} dot={false} connectNulls />
+            <Line type="monotone" dataKey="dco_off_dx" name="DCO OFF" stroke={color} strokeWidth={1.5} strokeDasharray="6 3" dot={false} connectNulls opacity={0.5} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }

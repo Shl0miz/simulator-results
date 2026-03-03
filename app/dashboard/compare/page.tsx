@@ -5,8 +5,6 @@ import { useSimulationStore } from '@/store/simulationStore';
 import { computeMonthlyProfit } from '@/lib/compute';
 import { ScoreBar } from '@/components/ScoreBar';
 import { AllocatorBadge } from '@/components/AllocatorBadge';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { formatCurrency, formatKw, formatScore } from '@/lib/utils';
 import type { EnrichedRow } from '@/lib/types';
@@ -14,6 +12,16 @@ import type { EnrichedRow } from '@/lib/types';
 const PAGE_SIZE = 20;
 
 type EnrichedRowExtended = EnrichedRow & { monthly_profit: number; optimization_score: number };
+
+const CARD = { background: '#0D0E14', border: '1px solid #44474F', borderRadius: 4 };
+const H2 = {
+  color: '#EDF0F3',
+  fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif',
+  fontWeight: 300,
+  textTransform: 'uppercase' as const,
+  letterSpacing: '0.12em',
+  fontSize: '0.95rem',
+};
 
 function computeBlendedScore(row: EnrichedRow, balance: number): number {
   const w = balance / 100;
@@ -29,17 +37,16 @@ export default function CompareTablePage() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   const rowsWithMonthly = useMemo((): EnrichedRowExtended[] => {
-    // Group rows by monthKey to compute monthly totals
     const byMonth: Record<string, EnrichedRow[]> = {};
     rawRows.forEach(r => { (byMonth[r.monthKey] ??= []).push(r); });
-
     return rawRows.map(row => {
       const monthRows = byMonth[row.monthKey] ?? [];
-      const profits = monthRows.map(r => r.profit);
-      const rolling = monthRows.map(r => r.max_power_demand_15m_rolling);
-      const monthly_profit = computeMonthlyProfit(profits, rolling, settings);
-      const optimization_score = computeBlendedScore(row, balance);
-      return { ...row, monthly_profit, optimization_score };
+      const monthly_profit = computeMonthlyProfit(
+        monthRows.map(r => r.profit),
+        monthRows.map(r => r.max_power_demand_15m_rolling),
+        settings
+      );
+      return { ...row, monthly_profit, optimization_score: computeBlendedScore(row, balance) };
     });
   }, [rawRows, settings, balance]);
 
@@ -75,9 +82,23 @@ export default function CompareTablePage() {
     a.click();
   }
 
+  const thStyle = (clickable: boolean) => ({
+    color: '#686B6D',
+    fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif',
+    fontSize: '0.6rem',
+    letterSpacing: '0.12em',
+    textTransform: 'uppercase' as const,
+    cursor: clickable ? 'pointer' : 'default',
+    userSelect: 'none' as const,
+    paddingBottom: '0.5rem',
+    paddingRight: '0.75rem',
+    whiteSpace: 'nowrap' as const,
+  });
+
   const Th = ({ label, k }: { label: string; k?: string }) => (
     <th
-      className={`text-left text-xs text-slate-400 pb-2 pr-3 whitespace-nowrap select-none ${k ? 'cursor-pointer hover:text-white' : ''}`}
+      style={thStyle(!!k)}
+      className={k ? 'hover:text-[#EDF0F3] transition-colors' : ''}
       onClick={() => k && toggleSort(k)}
     >
       {label}{k && sortKey === k ? (sortDir === 'desc' ? ' ↓' : ' ↑') : ''}
@@ -87,32 +108,50 @@ export default function CompareTablePage() {
   return (
     <div className="space-y-4 max-w-full">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-white">Compare Table</h2>
-        <Button variant="outline" size="sm" onClick={exportCsv} className="border-slate-600 text-slate-300">
+        <h2 style={H2}>Compare Table</h2>
+        <button
+          onClick={exportCsv}
+          className="px-3 py-1.5 text-[10px] tracking-widest uppercase transition-colors"
+          style={{
+            background: 'transparent',
+            color: '#FAFA2D',
+            border: '1px solid #FAFA2D44',
+            borderRadius: 2,
+            fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif',
+          }}
+        >
           Export CSV
-        </Button>
+        </button>
       </div>
 
       {/* Optimization balance slider */}
-      <Card className="border-slate-700" style={{ background: 'oklch(0.13 0.03 265)' }}>
-        <CardContent className="pt-4 pb-3">
-          <div className="flex items-center gap-4">
-            <span className="text-xs text-slate-400 w-20 shrink-0">Profit ←→ DX</span>
-            <Slider
-              value={[balance]}
-              onValueChange={([v]) => { setBalance(v); setPage(0); }}
-              min={0} max={100} step={5}
-              className="flex-1"
-            />
-            <span className="text-xs text-slate-400 w-8 text-right">{balance}</span>
-          </div>
-        </CardContent>
-      </Card>
+      <div style={CARD} className="p-4">
+        <div className="flex items-center gap-4">
+          <span
+            className="text-[10px] tracking-wider uppercase w-24 shrink-0"
+            style={{ color: '#686B6D', fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif' }}
+          >
+            Profit ←→ DX
+          </span>
+          <Slider
+            value={[balance]}
+            onValueChange={([v]) => { setBalance(v); setPage(0); }}
+            min={0} max={100} step={5}
+            className="flex-1"
+          />
+          <span
+            className="text-sm w-8 text-right tabular-nums"
+            style={{ color: '#FAFA2D', fontFamily: 'Clash Grotesk, sans-serif', fontWeight: 300 }}
+          >
+            {balance}
+          </span>
+        </div>
+      </div>
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-lg border border-slate-700">
+      <div className="overflow-x-auto rounded" style={{ border: '1px solid #44474F' }}>
         <table className="w-full text-sm">
-          <thead style={{ background: 'oklch(0.13 0.03 265)' }}>
+          <thead style={{ background: '#0D0E14' }}>
             <tr className="sticky top-0">
               <Th label="Name" />
               <Th label="Alloc." />
@@ -127,13 +166,19 @@ export default function CompareTablePage() {
           </thead>
           <tbody>
             {pageRows.map(row => (
-              <tr key={row._index} className="border-t border-slate-800 hover:bg-slate-800/30 transition-colors">
-                <td className="py-2 pr-3 max-w-xs truncate text-white text-xs">{row.name}</td>
+              <tr
+                key={row._index}
+                className="transition-colors"
+                style={{ borderTop: '1px solid #1A1B22' }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#141520')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                <td className="py-2 pr-3 max-w-xs truncate text-xs" style={{ color: '#EDF0F3' }}>{row.name}</td>
                 <td className="py-2 pr-3"><AllocatorBadge allocator={row.allocator} /></td>
-                <td className="py-2 pr-3 text-slate-400 text-xs">{row.start_date}</td>
-                <td className="py-2 pr-3 tabular-nums text-slate-200">{formatCurrency(row.profit)}</td>
-                <td className="py-2 pr-3 tabular-nums text-slate-200">{formatCurrency(row.monthly_profit)}</td>
-                <td className="py-2 pr-3 tabular-nums text-slate-400">{formatKw(row.max_power_demand_15m_rolling)}</td>
+                <td className="py-2 pr-3 text-xs" style={{ color: '#686B6D' }}>{row.start_date}</td>
+                <td className="py-2 pr-3 tabular-nums text-xs" style={{ color: '#EDF0F3', fontFamily: 'Clash Grotesk, sans-serif', fontWeight: 300 }}>{formatCurrency(row.profit)}</td>
+                <td className="py-2 pr-3 tabular-nums text-xs" style={{ color: '#EDF0F3', fontFamily: 'Clash Grotesk, sans-serif', fontWeight: 300 }}>{formatCurrency(row.monthly_profit)}</td>
+                <td className="py-2 pr-3 tabular-nums text-xs" style={{ color: '#686B6D' }}>{formatKw(row.max_power_demand_15m_rolling)}</td>
                 <td className="py-2 pr-3 w-32"><ScoreBar value={row.optimization_score} /></td>
                 <td className="py-2 pr-3 w-32"><ScoreBar value={row.profit_score} /></td>
                 <td className="py-2 pr-3 w-32"><ScoreBar value={row.dx_score} /></td>
@@ -144,18 +189,26 @@ export default function CompareTablePage() {
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between text-sm text-slate-400">
+      <div className="flex items-center justify-between text-xs" style={{ color: '#686B6D' }}>
         <span>{sorted.length} configurations</span>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" disabled={page === 0}
-                  onClick={() => setPage(p => p - 1)} className="border-slate-600 text-slate-300">
+          <button
+            disabled={page === 0}
+            onClick={() => setPage(p => p - 1)}
+            className="px-3 py-1 text-[10px] tracking-wider uppercase disabled:opacity-40 transition-opacity"
+            style={{ color: '#B1B3B4', border: '1px solid #44474F', borderRadius: 2, background: 'transparent' }}
+          >
             Previous
-          </Button>
-          <span className="px-2">Page {page + 1} / {totalPages || 1}</span>
-          <Button variant="outline" size="sm" disabled={page >= totalPages - 1}
-                  onClick={() => setPage(p => p + 1)} className="border-slate-600 text-slate-300">
+          </button>
+          <span className="px-2 tabular-nums">Page {page + 1} / {totalPages || 1}</span>
+          <button
+            disabled={page >= totalPages - 1}
+            onClick={() => setPage(p => p + 1)}
+            className="px-3 py-1 text-[10px] tracking-wider uppercase disabled:opacity-40 transition-opacity"
+            style={{ color: '#B1B3B4', border: '1px solid #44474F', borderRadius: 2, background: 'transparent' }}
+          >
             Next
-          </Button>
+          </button>
         </div>
       </div>
     </div>

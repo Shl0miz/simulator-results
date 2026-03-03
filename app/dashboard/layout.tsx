@@ -60,14 +60,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Show loading overlay while auto-loading from URL
   if (rawRows.length === 0) {
     return (
-      <div className="flex items-center justify-center h-screen gap-3 text-slate-400">
+      <div className="flex items-center justify-center h-screen gap-3" style={{ background: '#04040B', color: '#686B6D' }}>
         <Suspense fallback={null}>
           <AutoLoader />
         </Suspense>
         {isLoading && (
           <>
-            <Loader2 className="w-5 h-5 animate-spin" />
-            <span>Loading simulation data...</span>
+            <Loader2 className="w-4 h-4 animate-spin" style={{ color: '#FAFA2D' }} />
+            <span className="text-sm tracking-widest uppercase" style={{ fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif', fontWeight: 300, fontSize: '0.7rem', letterSpacing: '0.15em' }}>Loading simulation data...</span>
           </>
         )}
       </div>
@@ -75,16 +75,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden" style={{ background: '#04040B' }}>
       <Suspense fallback={null}>
         <AutoLoader />
       </Suspense>
       <GlobalSidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Suspense fallback={<nav className="h-12 border-b border-slate-800" />}>
+        <Suspense fallback={<nav className="h-11" style={{ background: '#04040B', borderBottom: '1px solid #44474F' }} />}>
           <TabNav />
         </Suspense>
-        <main className="flex-1 overflow-auto p-6">
+        <main className="flex-1 overflow-auto p-6" style={{ background: '#04040B' }}>
           {children}
         </main>
       </div>
