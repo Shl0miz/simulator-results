@@ -1,4 +1,4 @@
-// app/page.tsx
+// components/JobsDrawer.tsx
 'use client';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -9,7 +9,7 @@ import { enrichRows } from '@/lib/compute';
 import apiConfigJson from '@/config/api.config.json';
 import {
   RefreshCw, ChevronDown, ChevronRight, Loader2, Layers, FileText,
-  Trash2, Copy, Check, ChevronRight as ArrowRight,
+  Trash2, Copy, Check, X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -25,62 +25,45 @@ function timeAgo(iso: string): string {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-const STATUS_CFG: Record<string, { label: string; color: string }> = {
-  completed: { label: 'Done',    color: '#22c55e' },
-  pending:   { label: 'Pending', color: '#f59e0b' },
-  running:   { label: 'Running', color: '#3b82f6' },
-  failed:    { label: 'Failed',  color: '#ef4444' },
+const STATUS_CFG: Record<string, { color: string }> = {
+  completed: { color: '#22c55e' },
+  pending:   { color: '#f59e0b' },
+  running:   { color: '#3b82f6' },
+  failed:    { color: '#ef4444' },
 };
 
 function StatusDot({ status }: { status: string }) {
   const { color } = STATUS_CFG[status] ?? { color: '#686B6D' };
-  return (
-    <span
-      className="w-1.5 h-1.5 rounded-full shrink-0"
-      style={{ backgroundColor: color, display: 'inline-block' }}
-    />
-  );
+  return <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: color, display: 'inline-block' }} />;
 }
 
-function CopyConfigButton({ config }: { config?: string | null }) {
+function CopyConfigBtn({ config }: { config?: string | null }) {
   const [copied, setCopied] = useState(false);
   if (!config) return null;
   const cfg = config;
-
   function handleCopy(e: React.MouseEvent) {
     e.stopPropagation();
-    try {
-      const parsed = JSON.parse(cfg);
-      navigator.clipboard.writeText(JSON.stringify(parsed, null, 2));
-    } catch {
-      navigator.clipboard.writeText(cfg);
-    }
+    try { navigator.clipboard.writeText(JSON.stringify(JSON.parse(cfg), null, 2)); }
+    catch { navigator.clipboard.writeText(cfg); }
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   }
-
   return (
-    <button
-      onClick={handleCopy}
-      title="Copy config JSON"
-      className="opacity-40 hover:opacity-100 transition-opacity"
-      style={{ color: copied ? '#22c55e' : '#B1B3B4', lineHeight: 1 }}
-    >
+    <button onClick={handleCopy} title="Copy config" className="opacity-40 hover:opacity-100 transition-opacity" style={{ color: copied ? '#22c55e' : '#B1B3B4', lineHeight: 1 }}>
       {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
     </button>
   );
 }
 
-interface GroupedJobs {
-  name: string;
-  jobs: JobListItem[];
-  completedCount: number;
-  latestCreated: number;
+interface GroupedJobs { name: string; jobs: JobListItem[]; completedCount: number; latestCreated: number; }
+
+interface JobsDrawerProps {
+  onClose: () => void;
 }
 
-export default function LandingPage() {
+export function JobsDrawer({ onClose }: JobsDrawerProps) {
   const router = useRouter();
-  const { setRows, setLoading, isLoading, setLoadedUrl, setSourceKey, rawRows } = useSimulationStore();
+  const { setRows, setLoading, isLoading, setLoadedUrl, setSourceKey } = useSimulationStore();
 
   const [jobs, setJobs] = useState<JobListItem[]>([]);
   const [listLoading, setListLoading] = useState(false);
@@ -123,12 +106,13 @@ export default function LandingPage() {
         latestCreated: Math.max(...groupJobs.map(j => new Date(j.created).getTime())),
       }))
       .sort((a, b) => {
-        // Sort by latest activity DESC, ungrouped last
         if (a.name === '__ungrouped__') return 1;
         if (b.name === '__ungrouped__') return -1;
         return b.latestCreated - a.latestCreated;
       });
   }, [jobs]);
+
+  const anyLoading = isLoading || !!loadingKey;
 
   async function handleLoadSelected() {
     if (selectedGroups.size === 0) return;
@@ -137,11 +121,8 @@ export default function LandingPage() {
     setLoadingKey(key);
     setLoading(true);
     try {
-      const allResults = await Promise.all(
-        groupNames.map(g => fetchGroupResults(apiConfig, g))
-      );
-      const merged = allResults.flat();
-      const enriched = enrichRows(merged);
+      const allResults = await Promise.all(groupNames.map(g => fetchGroupResults(apiConfig, g)));
+      const enriched = enrichRows(allResults.flat());
       setRows(enriched);
       const label = groupNames.length === 1 ? `group: ${groupNames[0]}` : `${groupNames.length} groups`;
       setLoadedUrl(label);
@@ -149,6 +130,7 @@ export default function LandingPage() {
       const qs = groupNames.length === 1
         ? `?group=${encodeURIComponent(groupNames[0])}`
         : `?groups=${groupNames.map(encodeURIComponent).join(',')}`;
+      onClose();
       router.push(`/dashboard${qs}`);
     } catch (err) {
       alert(err instanceof Error ? err.message : String(err));
@@ -159,8 +141,7 @@ export default function LandingPage() {
   }
 
   async function handleLoadJob(jobId: string, jobName: string) {
-    const key = `job:${jobId}`;
-    setLoadingKey(key);
+    setLoadingKey(`job:${jobId}`);
     setLoading(true);
     try {
       const raw = await fetchJobResults(apiConfig, jobId);
@@ -168,6 +149,7 @@ export default function LandingPage() {
       setRows(enriched);
       setLoadedUrl(`job: ${jobName || jobId}`);
       setSourceKey(`job:${jobId}`);
+      onClose();
       router.push(`/dashboard?job=${encodeURIComponent(jobId)}`);
     } catch (err) {
       alert(err instanceof Error ? err.message : String(err));
@@ -205,86 +187,78 @@ export default function LandingPage() {
     }
   }
 
-  function toggleGroup(name: string) {
-    setExpandedGroups(prev => {
-      const next = new Set(prev);
-      if (next.has(name)) next.delete(name); else next.add(name);
-      return next;
-    });
-  }
-
   function toggleSelectGroup(name: string, e: React.MouseEvent) {
     e.stopPropagation();
-    setSelectedGroups(prev => {
-      const next = new Set(prev);
-      if (next.has(name)) next.delete(name); else next.add(name);
-      return next;
-    });
+    setSelectedGroups(prev => { const n = new Set(prev); if (n.has(name)) n.delete(name); else n.add(name); return n; });
   }
 
-  const anyLoading = isLoading || !!loadingKey;
+  function toggleGroup(name: string) {
+    setExpandedGroups(prev => { const n = new Set(prev); if (n.has(name)) n.delete(name); else n.add(name); return n; });
+  }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#04040B' }}>
-      <div className="flex-1 overflow-auto p-5 pb-24">
-        <div className="max-w-2xl mx-auto space-y-3">
+    <div className="flex flex-col h-full" style={{ background: '#04040B' }}>
+      {/* Drawer top bar */}
+      <div
+        className="flex items-center justify-between px-4 h-10 shrink-0"
+        style={{ borderBottom: '1px solid #44474F' }}
+      >
+        <div className="flex items-center gap-3">
+          <p className="text-[9px] tracking-[0.2em] uppercase" style={{ color: '#FAFA2D', fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif' }}>
+            Change Dataset
+          </p>
+          {selectedGroups.size > 0 && (
+            <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: '#FAFA2D18', color: '#FAFA2D', border: '1px solid #FAFA2D44' }}>
+              {selectedGroups.size} selected
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={loadJobList}
+            disabled={listLoading}
+            className="flex items-center gap-1 px-2 py-1 text-[9px] tracking-widest uppercase disabled:opacity-50"
+            style={{ color: '#686B6D', border: '1px solid #44474F', borderRadius: 2 }}
+          >
+            <RefreshCw className={cn('w-2.5 h-2.5', listLoading && 'animate-spin')} />
+            Refresh
+          </button>
+          <button
+            onClick={onClose}
+            className="flex items-center gap-1 px-2 py-1 text-[9px] tracking-widest uppercase"
+            style={{ color: '#686B6D', border: '1px solid #44474F', borderRadius: 2 }}
+          >
+            <X className="w-2.5 h-2.5" />
+            Close
+          </button>
+        </div>
+      </div>
 
-          {/* Header */}
-          <div className="flex items-center justify-between pb-3" style={{ borderBottom: '1px solid #44474F' }}>
-            <div>
-              <p className="text-[9px] tracking-[0.25em] uppercase" style={{ color: '#686B6D', fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif' }}>
-                evPower
-              </p>
-              <h1 className="tracking-widest uppercase" style={{ color: '#EDF0F3', fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif', fontWeight: 300, fontSize: '1.1rem', letterSpacing: '0.15em' }}>
-                Sim Results
-              </h1>
-            </div>
-            <div className="flex items-center gap-2">
-              {selectedGroups.size > 0 && (
-                <span className="text-[10px] px-2 py-0.5 rounded" style={{ background: '#FAFA2D18', color: '#FAFA2D', border: '1px solid #FAFA2D44' }}>
-                  {selectedGroups.size} selected
-                </span>
-              )}
-              <button
-                onClick={loadJobList}
-                disabled={listLoading}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] tracking-widest uppercase disabled:opacity-50 transition-opacity"
-                style={{ background: 'transparent', color: '#686B6D', border: '1px solid #44474F', borderRadius: 2, fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif' }}
-              >
-                <RefreshCw className={cn('w-3 h-3', listLoading && 'animate-spin')} />
-                Refresh
-              </button>
-            </div>
-          </div>
+      {/* Scrollable job list */}
+      <div className="flex-1 overflow-auto p-3">
+        <div className="max-w-2xl mx-auto space-y-2">
 
-          {/* Error */}
           {listError && (
             <div className="px-3 py-2 text-xs rounded" style={{ background: '#ef444418', color: '#ef4444', border: '1px solid #ef444444' }}>
               {listError}
             </div>
           )}
 
-          {/* Loading */}
           {listLoading && jobs.length === 0 && (
-            <div className="flex items-center justify-center py-12 gap-2" style={{ color: '#686B6D' }}>
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            <div className="flex items-center justify-center py-10 gap-2" style={{ color: '#686B6D' }}>
+              <Loader2 className="w-3 h-3 animate-spin" />
               <span className="text-xs">Loading jobs...</span>
             </div>
           )}
 
-          {/* Stats */}
           {jobs.length > 0 && (
-            <div className="flex gap-4 text-[10px]" style={{ color: '#686B6D' }}>
+            <div className="flex gap-3 text-[10px] pb-1" style={{ color: '#686B6D' }}>
               <span>{jobs.length} jobs</span>
               <span style={{ color: '#22c55e' }}>{jobs.filter(j => j.status === 'completed').length} done</span>
               <span style={{ color: '#f59e0b' }}>{jobs.filter(j => j.status === 'pending' || j.status === 'running').length} pending</span>
-              {jobs.filter(j => j.status === 'failed').length > 0 && (
-                <span style={{ color: '#ef4444' }}>{jobs.filter(j => j.status === 'failed').length} failed</span>
-              )}
             </div>
           )}
 
-          {/* Groups */}
           {groups.map(group => {
             const isExpanded = expandedGroups.has(group.name);
             const isSelected = selectedGroups.has(group.name);
@@ -292,122 +266,69 @@ export default function LandingPage() {
             const isGroupDeleting = deletingKey === `group:${group.name}`;
 
             return (
-              <div
-                key={group.name}
-                className="overflow-hidden"
-                style={{
-                  border: `1px solid ${isSelected ? '#FAFA2D44' : '#44474F'}`,
-                  borderRadius: 3,
-                  background: isSelected ? '#0F0F10' : 'transparent',
-                }}
-              >
-                {/* Group header row */}
+              <div key={group.name} className="overflow-hidden" style={{ border: `1px solid ${isSelected ? '#FAFA2D44' : '#44474F'}`, borderRadius: 3 }}>
                 <div
                   className="flex items-center gap-2 px-3 h-9 cursor-pointer select-none"
                   style={{ background: isSelected ? '#111113' : '#0D0E14' }}
                   onClick={() => toggleGroup(group.name)}
                 >
-                  {/* Checkbox */}
-                  {group.completedCount > 0 && (
+                  {group.completedCount > 0 ? (
                     <div
-                      className="w-3.5 h-3.5 rounded-sm shrink-0 flex items-center justify-center transition-colors"
-                      style={{
-                        background: isSelected ? '#FAFA2D' : 'transparent',
-                        border: `1px solid ${isSelected ? '#FAFA2D' : '#44474F'}`,
-                      }}
+                      className="w-3.5 h-3.5 rounded-sm shrink-0 flex items-center justify-center"
+                      style={{ background: isSelected ? '#FAFA2D' : 'transparent', border: `1px solid ${isSelected ? '#FAFA2D' : '#44474F'}` }}
                       onClick={e => toggleSelectGroup(group.name, e)}
                     >
                       {isSelected && <Check className="w-2.5 h-2.5" style={{ color: '#04040B' }} />}
                     </div>
-                  )}
-                  {group.completedCount === 0 && <div className="w-3.5 shrink-0" />}
-
-                  <span className="text-slate-500 shrink-0">
-                    {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-                  </span>
+                  ) : <div className="w-3.5 shrink-0" />}
+                  <span style={{ color: '#44474F' }}>{isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}</span>
                   <Layers className="w-3 h-3 shrink-0" style={{ color: isSelected ? '#FAFA2D' : '#686B6D' }} />
-                  <span
-                    className="flex-1 truncate"
-                    style={{
-                      color: isSelected ? '#FAFA2D' : '#EDF0F3',
-                      fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif',
-                      fontWeight: 300,
-                      fontSize: '0.7rem',
-                      letterSpacing: '0.08em',
-                      textTransform: 'uppercase',
-                    }}
-                  >
+                  <span className="flex-1 truncate" style={{ color: isSelected ? '#FAFA2D' : '#EDF0F3', fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif', fontWeight: 300, fontSize: '0.68rem', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                     {displayName}
                   </span>
                   <span className="text-[10px] shrink-0" style={{ color: '#44474F' }}>
                     {group.jobs.length}j · {group.completedCount}✓ · {timeAgo(new Date(group.latestCreated).toISOString())}
                   </span>
-
-                  {/* Delete group */}
                   <button
                     disabled={isGroupDeleting || anyLoading}
                     onClick={e => { e.stopPropagation(); handleDeleteGroup(group.name); }}
                     className="opacity-30 hover:opacity-80 transition-opacity shrink-0 disabled:opacity-20"
-                    title="Delete group"
                     style={{ color: '#ef4444', lineHeight: 1 }}
                   >
                     {isGroupDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
                   </button>
                 </div>
 
-                {/* Jobs list */}
                 {isExpanded && (
                   <div>
-                    {group.jobs.map((job, i) => {
+                    {group.jobs.map(job => {
                       const jobName = job.name || job.id.slice(0, 8) + '…';
                       const isJobDeleting = deletingKey === `job:${job.id}`;
                       const isJobLoading = loadingKey === `job:${job.id}`;
-                      const { color } = STATUS_CFG[job.status] ?? { color: '#686B6D' };
-
                       return (
-                        <div
-                          key={job.id}
-                          className="flex items-center gap-2 px-3 h-7"
-                          style={{
-                            background: '#080810',
-                            borderTop: '1px solid #1A1B22',
-                          }}
-                        >
-                          <div className="w-3.5 shrink-0" /> {/* indent alignment */}
-                          <div className="w-3 shrink-0" />    {/* chevron alignment */}
+                        <div key={job.id} className="flex items-center gap-2 px-3 h-7" style={{ background: '#080810', borderTop: '1px solid #1A1B22' }}>
+                          <div className="w-3.5 shrink-0" />
+                          <div className="w-3 shrink-0" />
                           <StatusDot status={job.status} />
-                          <span className="flex-1 text-[11px] truncate" style={{ color: '#B1B3B4' }} title={job.name ?? job.id}>
-                            {jobName}
-                          </span>
-                          <span className="text-[10px] shrink-0 tabular-nums" style={{ color: '#44474F' }}>
-                            {timeAgo(job.created)}
-                          </span>
+                          <span className="flex-1 text-[11px] truncate" style={{ color: '#B1B3B4' }} title={job.name ?? job.id}>{jobName}</span>
+                          <span className="text-[10px] shrink-0 tabular-nums" style={{ color: '#44474F' }}>{timeAgo(job.created)}</span>
                           {job.run_duration != null && (
-                            <span className="text-[9px] shrink-0 tabular-nums" style={{ color: '#44474F' }}>
-                              {job.run_duration.toFixed(0)}s
-                            </span>
+                            <span className="text-[9px] shrink-0" style={{ color: '#44474F' }}>{job.run_duration.toFixed(0)}s</span>
                           )}
-
-                          {/* Copy config */}
-                          <CopyConfigButton config={job.config} />
-
-                          {/* Delete job */}
+                          <CopyConfigBtn config={job.config} />
                           <button
                             disabled={isJobDeleting || anyLoading}
                             onClick={e => handleDeleteJob(job.id, e)}
                             className="opacity-30 hover:opacity-80 transition-opacity shrink-0 disabled:opacity-20"
-                            title="Delete job"
                             style={{ color: '#ef4444', lineHeight: 1 }}
                           >
                             {isJobDeleting ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Trash2 className="w-2.5 h-2.5" />}
                           </button>
-
-                          {/* Load single job */}
                           {job.status === 'completed' && (
                             <button
                               disabled={isJobLoading || anyLoading}
                               onClick={() => handleLoadJob(job.id, job.name ?? '')}
-                              className="text-[9px] tracking-wider uppercase px-1.5 py-0.5 shrink-0 transition-opacity disabled:opacity-40"
+                              className="text-[9px] tracking-wider uppercase px-1.5 py-0.5 shrink-0 disabled:opacity-40"
                               style={{ color: '#FAFA2D', border: '1px solid #FAFA2D33', borderRadius: 2 }}
                             >
                               {isJobLoading ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : 'Load'}
@@ -423,57 +344,33 @@ export default function LandingPage() {
           })}
 
           {!listLoading && jobs.length === 0 && !listError && (
-            <div className="text-center py-12 text-xs" style={{ color: '#44474F' }}>
-              No jobs found. Click Refresh to load.
-            </div>
+            <div className="text-center py-10 text-xs" style={{ color: '#44474F' }}>No jobs found.</div>
           )}
         </div>
       </div>
 
-      {/* Sticky bottom action bar */}
+      {/* Bottom action bar */}
       <div
-        className="fixed bottom-0 left-0 right-0 flex items-center justify-between px-5 py-3"
-        style={{
-          background: '#04040B',
-          borderTop: '1px solid #44474F',
-          zIndex: 40,
-        }}
+        className="flex items-center justify-between px-4 py-2.5 shrink-0"
+        style={{ borderTop: '1px solid #44474F' }}
       >
         <span className="text-[10px]" style={{ color: '#686B6D' }}>
-          {selectedGroups.size > 0
-            ? `${selectedGroups.size} group${selectedGroups.size > 1 ? 's' : ''} selected`
-            : 'Select groups to load'}
+          {selectedGroups.size > 0 ? `${selectedGroups.size} group${selectedGroups.size > 1 ? 's' : ''} selected` : 'Select groups above'}
         </span>
-        <div className="flex items-center gap-2">
-          {rawRows.length > 0 && (
-            <button
-              onClick={() => router.push('/dashboard')}
-              className="flex items-center gap-1.5 px-4 py-1.5 text-[10px] tracking-widest uppercase transition-colors"
-              style={{ color: '#EDF0F3', border: '1px solid #44474F', borderRadius: 2, fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif' }}
-            >
-              Results
-              <ArrowRight className="w-3 h-3" />
-            </button>
-          )}
-          <button
-            onClick={handleLoadSelected}
-            disabled={selectedGroups.size === 0 || anyLoading}
-            className="flex items-center gap-1.5 px-4 py-1.5 text-[10px] tracking-widest uppercase transition-all disabled:opacity-40"
-            style={{
-              background: selectedGroups.size > 0 ? '#FAFA2D' : '#141520',
-              color: selectedGroups.size > 0 ? '#04040B' : '#686B6D',
-              border: `1px solid ${selectedGroups.size > 0 ? '#FAFA2D' : '#44474F'}`,
-              borderRadius: 2,
-              fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif',
-            }}
-          >
-            {anyLoading && loadingKey?.startsWith('group') ? (
-              <><Loader2 className="w-3 h-3 animate-spin" /> Loading...</>
-            ) : (
-              <>Load{selectedGroups.size > 1 ? ` ${selectedGroups.size} Groups` : selectedGroups.size === 1 ? ' Group' : ''}</>
-            )}
-          </button>
-        </div>
+        <button
+          onClick={handleLoadSelected}
+          disabled={selectedGroups.size === 0 || anyLoading}
+          className="flex items-center gap-1.5 px-4 py-1.5 text-[10px] tracking-widest uppercase disabled:opacity-40 transition-all"
+          style={{
+            background: selectedGroups.size > 0 ? '#FAFA2D' : '#141520',
+            color: selectedGroups.size > 0 ? '#04040B' : '#686B6D',
+            border: `1px solid ${selectedGroups.size > 0 ? '#FAFA2D' : '#44474F'}`,
+            borderRadius: 2,
+            fontFamily: 'Mona Sans, Plus Jakarta Sans, sans-serif',
+          }}
+        >
+          {anyLoading ? <><Loader2 className="w-3 h-3 animate-spin" /> Loading...</> : <>Load {selectedGroups.size > 0 ? selectedGroups.size : ''} Group{selectedGroups.size !== 1 ? 's' : ''}</>}
+        </button>
       </div>
     </div>
   );

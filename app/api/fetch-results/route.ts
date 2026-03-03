@@ -1,7 +1,7 @@
 // app/api/fetch-results/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(req: NextRequest) {
+async function proxyRequest(req: NextRequest, method: string) {
   const targetUrl = req.nextUrl.searchParams.get('url');
 
   if (!targetUrl) {
@@ -10,11 +10,11 @@ export async function GET(req: NextRequest) {
 
   try {
     const upstream = await fetch(decodeURIComponent(targetUrl), {
+      method,
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
       },
-      // Next.js server-side fetch has no browser timeout limit
     });
 
     if (!upstream.ok) {
@@ -25,7 +25,9 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const data = await upstream.json();
+    // DELETE responses may be empty
+    const text = await upstream.text();
+    const data = text ? JSON.parse(text) : {};
     return NextResponse.json(data);
   } catch (err) {
     return NextResponse.json(
@@ -33,4 +35,12 @@ export async function GET(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+export async function GET(req: NextRequest) {
+  return proxyRequest(req, 'GET');
+}
+
+export async function DELETE(req: NextRequest) {
+  return proxyRequest(req, 'DELETE');
 }

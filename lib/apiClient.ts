@@ -17,6 +17,7 @@ interface JobResponse {
   group?: string | null;
   status: string;
   result?: Record<string, unknown>[] | null;
+  config?: string | null;
   error?: string | null;
 }
 
@@ -35,7 +36,7 @@ function applyFieldMap(
   });
 }
 
-/** Proxy all requests through Next.js API route to avoid CORS */
+/** Proxy GET requests through Next.js API route to avoid CORS */
 async function proxyFetch(url: string): Promise<unknown> {
   const res = await fetch(`/api/fetch-results?url=${encodeURIComponent(url)}`);
   if (!res.ok) {
@@ -45,10 +46,20 @@ async function proxyFetch(url: string): Promise<unknown> {
   return res.json();
 }
 
+/** Proxy DELETE requests through Next.js API route */
+async function proxyDelete(url: string): Promise<void> {
+  const res = await fetch(`/api/fetch-results?url=${encodeURIComponent(url)}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Delete failed ${res.status}: ${body}`);
+  }
+}
+
 /**
  * Fetch results for a simulation GROUP.
  * Calls GET /simulate/group/{group}?include_result=true
- * Flattens result arrays from all completed jobs in the group.
  */
 export async function fetchGroupResults(
   config: EvPowerApiConfig,
@@ -74,8 +85,7 @@ export async function fetchGroupResults(
     const completed = data.filter(j => j.status === 'completed').length;
     throw new Error(
       `No completed results found in group "${group}". ` +
-      `${completed}/${total} jobs completed. ` +
-      `Check that jobs have finished running.`
+      `${completed}/${total} jobs completed.`
     );
   }
 
@@ -117,27 +127,36 @@ export interface JobListItem {
   status: string;       // "completed" | "pending" | "failed" | "running"
   created: string;
   updated: string;
+  config?: string | null;
   error?: string | null;
   run_duration?: number | null;
 }
 
 /**
- * Fetch list of all simulation jobs (no results, just metadata).
- * GET /simulate?limit=10000&include_config=false
+ * Fetch list of all simulation jobs with config included.
+ * GET /simulate?limit=10000&include_config=true
  */
 export async function fetchJobList(config: EvPowerApiConfig): Promise<JobListItem[]> {
-  const url = `${config.baseUrl}/simulate?limit=10000&include_config=false`;
+  const url = `${config.baseUrl}/simulate?limit=10000&include_config=true`;
   const data = await proxyFetch(url);
   if (!Array.isArray(data)) throw new Error('Job list endpoint did not return an array');
   return data as JobListItem[];
 }
 
+/** Delete a single job by ID. DELETE /simulate/{jobId} */
+export async function deleteJob(config: EvPowerApiConfig, jobId: string): Promise<void> {
+  const url = `${config.baseUrl}/simulate/${encodeURIComponent(jobId)}`;
+  await proxyDelete(url);
+}
+
+/** Delete all jobs in a group. DELETE /simulate/group/{group} */
+export async function deleteGroup(config: EvPowerApiConfig, group: string): Promise<void> {
+  const url = `${config.baseUrl}/simulate/group/${encodeURIComponent(group)}`;
+  await proxyDelete(url);
+}
+
 /**
- * Generic fetch from a full URL — for advanced/custom use.
- * Detects response shape automatically:
- * - JobResponse[] → flatten all .result arrays
- * - JobResponse   → extract .result
- * - Array         → use directly
+ * Generic fetch from a full URL — auto-detects response shape.
  */
 export async function fetchFromUrl(
   url: string,
@@ -148,10 +167,8 @@ export async function fetchFromUrl(
   let rows: Record<string, unknown>[];
 
   if (Array.isArray(data)) {
-    // Could be JobResponse[] or SimulationResult[]
     const first = data[0] as Record<string, unknown> | undefined;
     if (first && 'status' in first && 'result' in first) {
-      // JobResponse[] — flatten results
       rows = [];
       for (const job of data as JobResponse[]) {
         if (job.status === 'completed' && Array.isArray(job.result)) {
@@ -162,7 +179,6 @@ export async function fetchFromUrl(
       rows = data as Record<string, unknown>[];
     }
   } else if (data && typeof data === 'object' && 'status' in (data as object) && 'result' in (data as object)) {
-    // Single JobResponse
     const job = data as JobResponse;
     if (!Array.isArray(job.result)) {
       throw new Error('Job has no result array');
